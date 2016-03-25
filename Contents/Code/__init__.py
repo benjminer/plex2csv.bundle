@@ -321,7 +321,7 @@ def scanMovieDB(myMediaURL, myCSVFile):
 		Log.Debug("About to open file %s" %(myCSVFile))
 		csvfile = io.open(myCSVFile,'wb')
 		# Create output file, and print the header
-		csvwriter = csv.DictWriter(csvfile, fieldnames=movies.getMovieHeader(Prefs['Movie_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_NONNUMERIC)
+		csvwriter = csv.DictWriter(csvfile, fieldnames=movies.getMovieHeader(Prefs['Movie_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_MINIMAL)
 		Log.Debug("Writing header")
 		csvwriter.writeheader()
 		if Prefs['Movie_Level'] in moviefields.singleCall:
@@ -378,7 +378,7 @@ def scanShowDB(myMediaURL, myCSVFile):
 		Log.Debug("About to open file %s" %(myCSVFile))
 		csvfile = io.open(myCSVFile,'wb')
 		# Create output file, and print the header
-		csvwriter = csv.DictWriter(csvfile, fieldnames=tvseries.getTVHeader(Prefs['TV_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_NONNUMERIC)
+		csvwriter = csv.DictWriter(csvfile, fieldnames=tvseries.getTVHeader(Prefs['TV_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_MINIMAL)
 		Log.Debug("Writing header")
 		csvwriter.writeheader()
 		if Prefs['TV_Level'] in tvfields.singleCall:
@@ -469,7 +469,7 @@ def scanPList(key, playListType, myCSVFile):
 		mySepChar = Prefs['Seperator']
 		Log.Debug('Writing headers for Playlist Export')
 		csvfile = io.open(myCSVFile,'wb')
-		csvwriter = csv.DictWriter(csvfile, fieldnames=playlists.getPlayListHeader(playListType, Prefs['PlayList_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_NONNUMERIC)
+		csvwriter = csv.DictWriter(csvfile, fieldnames=playlists.getPlayListHeader(playListType, Prefs['PlayList_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_MINIMAL)
 		csvwriter.writeheader()
 		iCount = bScanStatusCount
 		Log.Debug('Starting to fetch the list of items in this section')
@@ -507,7 +507,7 @@ def scanArtistDB(myMediaURL, myCSVFile):
 		mySepChar = Prefs['Seperator']
 		Log.Debug('Writing headers for Audio Export')
 		csvfile = io.open(myCSVFile,'wb')
-		csvwriter = csv.DictWriter(csvfile, fieldnames=audio.getMusicHeader(Prefs['Artist_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_NONNUMERIC)
+		csvwriter = csv.DictWriter(csvfile, fieldnames=audio.getMusicHeader(Prefs['Artist_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_MINIMAL)
 		csvwriter.writeheader()
 		if Prefs['Artist_Level'] in audiofields.singleCall:
 			bExtraInfo = False
@@ -561,7 +561,7 @@ def scanPhotoDB(myMediaURL, myCSVFile):
 		mySepChar = Prefs['Seperator']
 		Log.Debug('Writing headers for Photo Export')
 		csvfile = io.open(myCSVFile,'wb')
-		csvwriter = csv.DictWriter(csvfile, fieldnames=photo.getHeader(Prefs['Photo_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_NONNUMERIC)
+		csvwriter = csv.DictWriter(csvfile, fieldnames=photo.getHeader(Prefs['Photo_Level']), delimiter=Prefs['Delimiter'], quoting=csv.QUOTE_MINIMAL)
 		csvwriter.writeheader()
 		if Prefs['Photo_Level'] in photofields.singleCall:
 			bExtraInfo = False
