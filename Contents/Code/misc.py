@@ -6,7 +6,7 @@
 #
 ####################################################################################################
 
-VERSION='0.0.0.3'
+VERSION='0.0.0.4'
 
 from textwrap import wrap, fill
 import re
@@ -127,26 +127,39 @@ def GetRegInfo2(myMedia, myField, default = 'N/A'):
 	returnVal = ''	
 	try:
 		fieldsplit = myField.rsplit('@', 1)
-		# Singe attribute lookup
+		# Single attribute lookup
 		if fieldsplit[0] == '':
 			try:
-				returnVal = myMedia.get(fieldsplit[1])
-				if returnVal == None:
-					returnVal = default
-				elif fieldsplit[1] in moviefields.dateTimeFields:
-					returnVal = ConvertDateStamp(returnVal)
-					if returnVal == '01/01/1970':
+				if len(fieldsplit) == 2:
+					returnVal = myMedia.get(fieldsplit[1])
+					if returnVal == None:
 						returnVal = default
-				elif fieldsplit[1] in moviefields.timeFields:
-					returnVal = ConvertTimeStamp(returnVal)
-					if returnVal == '01/01/1970':
-						returnVal = default
-				# IMDB?
-				elif fieldsplit[1] == 'guid':
-					tmp = returnVal[26:].rsplit('?',1)
-					returnVal = tmp[0]
+					elif fieldsplit[1] in moviefields.dateTimeFields:
+						returnVal = ConvertDateStamp(returnVal)
+						if returnVal == '01/01/1970':
+							returnVal = default
+					elif fieldsplit[1] in moviefields.timeFields:
+						returnVal = ConvertTimeStamp(returnVal)
+						if returnVal == '01/01/1970':
+							returnVal = default
+					# IMDB or TheMovieDB?
+					elif fieldsplit[1] == 'guid':
+						linkID = returnVal[returnVal.index('://')+3:returnVal.index('?lang')]
+						if 'com.plexapp.agents.imdb' in returnVal:
+							sTmp = 'http://www.imdb.com/title/' + linkID
+						elif 'com.plexapp.agents.themoviedb' in returnVal:
+							sTmp = 'https://www.themoviedb.org/movie/' + linkID
+						elif 'com.plexapp.agents.thetvdb' in returnVal:
+							linkID = linkID[:returnVal.index('/')]
+							sTmp = 'https://thetvdb.com/?tab=series&id=' + linkID[:linkID.index('/')]
+						else:
+							sTmp = 'N/A'
+						#returnVal = sTmp
+						return sTmp.encode('utf8')
 			except:
-				Log.Debug('Exception on field: ' + myField)
+				Log.Critical('Exception on field: ' + myField)
+				returnVal = default
+				return WrapStr(fixCRLF(returnVal)).encode('utf8')
 		else:
 			# Attributes from xpath
 			retVals = myMedia.xpath(fieldsplit[0][:-1])
@@ -163,12 +176,16 @@ def GetRegInfo2(myMedia, myField, default = 'N/A'):
 					# Got a timestamp?
 					elif fieldsplit[1] in moviefields.timeFields:
 						retVal = ConvertTimeStamp(retVal)
-					if returnVal == '': 
+					# size conversion?
+					elif myField == 'Media/Part/@size':
+						retVal = (str(ConvertSize(retVal))+' GB')
+					if returnVal == '':
 						returnVal = retVal
 					else:
 						returnVal = returnVal + Prefs['Seperator'] + retVal
 				except:
-					Log.Debug('Exception happend in field: ' + myField)		
+					Log.Exception('Exception happend in field: ' + myField)
+					returnVal = default		
 		return WrapStr(fixCRLF(returnVal)).encode('utf8')
 	except:
 		returnVal = default
@@ -247,4 +264,9 @@ def getMediaPath(myMedia, myRow):
 		myRow['PMS Media Path'] = PMSMediaPath.encode('utf8')
 	return myRow
 
-
+####################################################################################################
+# This function converts Byte to Gigabyte
+####################################################################################################
+def ConvertSize(SizeAsString):
+	ConvertedSize = round(float(SizeAsString)/(1024**3),2)
+	return ConvertedSize
