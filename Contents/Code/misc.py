@@ -12,6 +12,7 @@ from textwrap import wrap, fill
 import re
 import datetime
 import moviefields, audiofields, tvfields, photofields
+import dateutil.parser as parser
 
 ####################################################################################################
 # This function will return the version of the misc module
@@ -148,10 +149,19 @@ def GetRegInfo2(myMedia, myField, default = 'N/A'):
 						if 'com.plexapp.agents.imdb' in returnVal:
 							sTmp = 'http://www.imdb.com/title/' + linkID
 						elif 'com.plexapp.agents.themoviedb' in returnVal:
-							sTmp = 'https://www.themoviedb.org/movie/' + linkID
+							itemType = myMedia.xpath('@type')
+							if itemType[0] == 'movie':
+								sTmp = 'https://www.themoviedb.org/movie/' + linkID
+							elif itemType[0] == 'episode':
+								sTmp = 'https://www.themoviedb.org/tv/' + linkID[:linkID.index('/')]
 						elif 'com.plexapp.agents.thetvdb' in returnVal:
 							linkID = linkID[:returnVal.index('/')]
 							sTmp = 'https://thetvdb.com/?tab=series&id=' + linkID[:linkID.index('/')]
+						elif 'com.plexapp.agents.anidb' in returnVal:
+							linkID = linkID[:returnVal.index('/')]
+							sTmp = 'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=' + linkID[:linkID.index('/')]
+						elif 'com.plexapp.agents.data18' in returnVal:
+							sTmp = 'http://www.data18.com/movies/' + linkID
 						else:
 							sTmp = 'N/A'
 						#returnVal = sTmp
@@ -223,10 +233,10 @@ def ConvertTimeStamp(timeStamp):
 	return hours + ':' + minutes + ':' + seconds
 
 ####################################################################################################
-# This function will return a string in month, date, year format from a millisecond timestamp
+# This function will return a date string in ISO 8601 format from a millisecond timestamp
 ####################################################################################################
 def ConvertDateStamp(timeStamp):
-	return Datetime.FromTimestamp(float(timeStamp)).strftime('%m/%d/%Y')
+	return Datetime.FromTimestamp(float(timeStamp)).date().isoformat()
 
 ####################################################################################################
 # This function will return fieldnames for a level
