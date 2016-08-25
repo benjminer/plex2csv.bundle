@@ -6,13 +6,17 @@
 #
 ####################################################################################################
 
-VERSION='0.0.0.4'
+VERSION='0.0.0.5'
 
 from textwrap import wrap, fill
 import re
 import datetime
 import moviefields, audiofields, tvfields, photofields
 import dateutil.parser as parser
+
+import sys, os
+import math
+
 
 ####################################################################################################
 # This function will return the version of the misc module
@@ -60,7 +64,6 @@ def GetLoopBack():
 		httpResponse = HTTP.Request('http://[::1]:32400/web', immediate=True, timeout=5)
 		return 'http://[::1]:32400'
 	except:
-		print 'Got IP v4'
 		return 'http://127.0.0.1:32400'
 
 ####################################################################################################
@@ -124,8 +127,10 @@ def GetRegInfo(myMedia, myField, default = ''):
 ####################################################################################################
 #	Pull's a field from the xml
 ####################################################################################################
-def GetRegInfo2(myMedia, myField, default = 'N/A'):
+def GetRegInfo2(myMedia, myField, default = 'N/A', key = 'N/A'):
 	returnVal = ''	
+	global retVal
+	retVal = ''
 	try:
 		fieldsplit = myField.rsplit('@', 1)
 		# Single attribute lookup
@@ -145,57 +150,47 @@ def GetRegInfo2(myMedia, myField, default = 'N/A'):
 							returnVal = default
 					# IMDB or TheMovieDB?
 					elif fieldsplit[1] == 'guid':
-						linkID = returnVal[returnVal.index('://')+3:returnVal.index('?lang')]
-						if 'com.plexapp.agents.imdb' in returnVal:
-							sTmp = 'http://www.imdb.com/title/' + linkID
-						elif 'com.plexapp.agents.themoviedb' in returnVal:
-							itemType = myMedia.xpath('@type')
-							if itemType[0] == 'movie':
-								sTmp = 'https://www.themoviedb.org/movie/' + linkID
-							elif itemType[0] == 'episode':
-								sTmp = 'https://www.themoviedb.org/tv/' + linkID[:linkID.index('/')]
-						elif 'com.plexapp.agents.thetvdb' in returnVal:
-							linkID = linkID[:returnVal.index('/')]
-							sTmp = 'https://thetvdb.com/?tab=series&id=' + linkID[:linkID.index('/')]
-						elif 'com.plexapp.agents.anidb' in returnVal:
-							linkID = linkID[:returnVal.index('/')]
-							sTmp = 'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=' + linkID[:linkID.index('/')]
-						elif 'com.plexapp.agents.data18' in returnVal:
-							sTmp = 'http://www.data18.com/movies/' + linkID
-						else:
-							sTmp = 'N/A'
-						#returnVal = sTmp
-						return sTmp.encode('utf8')
+						return metaDBLink(returnVal, mediatype = myMedia.xpath('@type')[0]).encode('utf8')
 			except:
 				Log.Critical('Exception on field: ' + myField)
 				returnVal = default
 				return WrapStr(fixCRLF(returnVal)).encode('utf8')
 		else:
 			# Attributes from xpath
-			retVals = myMedia.xpath(fieldsplit[0][:-1])
+			try:
+				retVals = myMedia.xpath(fieldsplit[0][:-1])
+			except:
+				retVals = []
+				retVals[0] = myField
+				pass
 			for retVal2 in retVals:
 				try:
 					# Get attribute
-					retVal = retVal2.get(fieldsplit[1])
+					retVal = default
+					retVal = String.Unquote(retVal2.get(fieldsplit[1]))
 					# Did it exists?
 					if retVal == None:
 						retVal = default
 					# Is it a dateStamp?
-					elif fieldsplit[1] in moviefields.dateTimeFields:					
+					elif fieldsplit[1] in moviefields.dateTimeFields:	
 						retVal = ConvertDateStamp(retVal)
 					# Got a timestamp?
 					elif fieldsplit[1] in moviefields.timeFields:
 						retVal = ConvertTimeStamp(retVal)
 					# size conversion?
-					elif myField == 'Media/Part/@size':
-						retVal = (str(ConvertSize(retVal))+' GB')
+					elif key == 'Part Size':
+						retVal = ConvertSize(retVal)
 					if returnVal == '':
 						returnVal = retVal
 					else:
 						returnVal = returnVal + Prefs['Seperator'] + retVal
-				except:
-					Log.Exception('Exception happend in field: ' + myField)
-					returnVal = default		
+				except Exception, e:
+					if returnVal != '':
+						returnVal = returnVal + Prefs['Seperator'] + retVal
+						pass
+					else:
+						returnVal = default
+						pass
 		return WrapStr(fixCRLF(returnVal)).encode('utf8')
 	except:
 		returnVal = default
@@ -212,8 +207,10 @@ def fixCRLF(myString):
 ####################################################################################################
 #	Wraps a string if needed
 ####################################################################################################
-def WrapStr(myStr):
+def WrapStr(myStr, default = 'N/A'):
 	LineWrap = int(Prefs['Line_Length'])
+	if myStr == None:
+		myStr = default
 	if Prefs['Line_Wrap']:		
 		return fill(myStr, LineWrap)
 	else:
@@ -251,22 +248,25 @@ def getLevelFields(levelFields, fieldnames):
 # This function fetch the actual info for the element
 ####################################################################################################
 def getItemInfo(et, myRow, fieldList):
-	for item in fieldList:
-		key = str(item[0])
-		value = str(item[1])
-		element = GetRegInfo2(et, value, 'N/A')
-		if key in myRow:
-			myRow[key] = myRow[key] + Prefs['Seperator'] + element
-		else:
-			myRow[key] = element
-	return myRow
+	try:
+		for item in fieldList:
+			key = str(item[0])
+			value = str(item[1])			
+			element = GetRegInfo2(et, value, 'N/A', key = key)
+			if key in myRow:
+				myRow[key] = myRow[key] + Prefs['Seperator'] + element
+			else:
+				myRow[key] = element
+		return myRow
+	except Exception, e:
+		Log.Exception('Exception in getItemInfo: ' + str(e))
 
 ####################################################################################################
 # This function will return the media path info for movies
 ####################################################################################################
 def getMediaPath(myMedia, myRow):
 	# Get tree info for media
-	myMediaTreeInfoURL = 'http://127.0.0.1:32400/library/metadata/' + GetRegInfo(myMedia, 'ratingKey') + '/tree'
+	myMediaTreeInfoURL = GetLoopBack() + '/library/metadata/' + GetRegInfo(myMedia, 'ratingKey') + '/tree'
 	TreeInfo = XML.ElementFromURL(myMediaTreeInfoURL).xpath('//MediaPart')
 	for myPart in TreeInfo:
 		MediaHash = GetRegInfo(myPart, 'hash')
@@ -275,8 +275,40 @@ def getMediaPath(myMedia, myRow):
 	return myRow
 
 ####################################################################################################
-# This function converts Byte to Gigabyte
+# This function converts Byte to best readable string
 ####################################################################################################
 def ConvertSize(SizeAsString):
-	ConvertedSize = round(float(SizeAsString)/(1024**3),2)
-	return ConvertedSize
+	size = float(SizeAsString)
+	if (size == 0):
+		return '0B'
+	size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+	i = int(math.floor(math.log(size,1024)))
+	p = math.pow(1024,i)
+	s = round(size/p,2)
+	return '%s %s' % (s,size_name[i])
+
+####################################################################################################
+# Returns a MetaDb link from a Guid
+####################################################################################################
+def metaDBLink(guid, mediatype = 'episode', default = 'N/A'):
+	if 'local://' in guid:
+		sTmp = default
+		return sTmp
+	linkID = guid[guid.index('://')+3:guid.index('?lang')]
+	if 'com.plexapp.agents.imdb' in guid:
+		sTmp = 'http://www.imdb.com/title/' + linkID
+	elif 'com.plexapp.agents.themoviedb' in guid:
+		if mediatype == 'movie':
+			sTmp = 'https://www.themoviedb.org/movie/' + linkID
+		elif mediatype == 'episode':
+			sTmp = 'https://www.themoviedb.org/tv/' + linkID
+	elif 'com.plexapp.agents.thetvdb' in guid:
+		sTmp = 'https://thetvdb.com/?tab=series&id=' + linkID
+	elif 'com.plexapp.agents.anidb' in guid:
+		sTmp = 'https://anidb.net/perl-bin/animedb.pl?show=anime&aid=' + linkID
+	elif 'com.plexapp.agents.data18' in guid:
+		sTmp = 'http://www.data18.com/movies/' + linkID
+	else:
+		sTmp = default
+	return sTmp
+

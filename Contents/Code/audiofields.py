@@ -51,6 +51,7 @@ Level_4 = [
 	('Part Duration' , 'Media/Part/@duration'),
 	('Part File' , 'Media/Part/@file'),
 	('Part Size' , 'Media/Part/@size'),
+	('Part Size as Bytes' , 'Media/Part/@size'),
 	('Part Container' , 'Media/Part/@container')
 	]
 
@@ -66,7 +67,10 @@ Level_5 = [
 	('Stream Duration' , 'Media/Part/Stream[@streamType=2]/@duration'),
 	('Stream Sampling Rate' , 'Media/Part/Stream[@streamType=2]/@samplingRate'),
 	('Accessible' , 'Media/Part/@accessible'),	
-	('Exists' , 'Media/Part/@exists')
+	('Exists' , 'Media/Part/@exists'),
+	('Lyrics Codec' , 'Media/Part/Stream[@streamType=4]/@codec'),
+	('Lyrics Provider' , 'Media/Part/Stream[@streamType=4]/@provider'),
+	('Lyrics Timed' , 'Media/Part/Stream[@streamType=4]/@timed')
 	]
 
 Level_6 = [
